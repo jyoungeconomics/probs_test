@@ -1,6 +1,6 @@
-require("shiny");require("tidyverse");
-require("ggplot2");require("gsheet");
-require("fredr");require("dplyr")
+packs <- c("shiny","tidyverse","ggplot2","gsheet","dplyr",
+           "fredr","magick","grid","spsComps")
+lapply(packs, library, character.only = TRUE)
 
 # source("C:/Users/jyoung6/Desktop/Consulting/AEI/2023 Projects/Pricing Distributions/apps/probs/helpers1.R")
 
@@ -266,11 +266,24 @@ server <- function(input, output, session) {
                  label = "Enter a Price of Interest",
                  value = 0.01*cropz[1],min = 0,max = 100)
   })
+  
+  # newData <- reactive({
+  #   isolate({
+  #     prob1 <- DDD
+  #     prob1 <- data.frame(prob1 %>% filter(Crop1 == input$crop123,
+  #                                          Contract1 == input$contract123))
+  #     prob420 <- goobus(mydata = prob1, z = input$STRIKE,details = T)
+  #   })
+  # })
+  
+  # goobus(mydata = prob, z = input$STRIKE,details = T)$date
+  # goobus(mydata = prob, z = input$STRIKE,details = T)$ppp
     
   output$line <- renderPlot({
-    ggplot(goobus(mydata = DDD %>% filter(Crop1 == input$crop123,
-                                          Contract1 == input$contract123),
-                  z = input$STRIKE,details = T),aes(x=`date`, y=`ppp`))+
+    ggplot(goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123,
+                                            Contract1 %in% input$contract123),
+                  z = input$STRIKE,details = T),
+           aes(x=`date`, y=`ppp`))+
       theme_minimal()+
       annotation_custom(rasterGrob(image_read("http://aei.ag/wp-content/uploads/2023/04/AEI-Premium-Watermark.png"),
                                    interpolate = T), 
@@ -280,9 +293,9 @@ server <- function(input, output, session) {
             panel.grid.minor.y = element_line(size = 1.1,color="grey80"),
             panel.grid.major.y = element_line(size = 1.1,color="grey80"))+
       ggtitle(label = paste0("Probability of ",input$contract123," ",input$crop123,
-                             " less than $",sprintf("%0.2f",round(input$STRIKE,2))," at expiration: \n",
-                             "Weekly Estimates from ",min(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$date),
-                             " --- ",max(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$date),
+                             " less than $",sprintf("%0.2f",input$STRIKE)," at expiration: \n",
+                             "Weekly Estimates from ",first(goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123, Contract1 %in% input$contract123), z = input$STRIKE,details = T)$date),
+                             " --- ",last(goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123, Contract1 %in% input$contract123), z = input$STRIKE,details = T)$date),
                              " \n(Source: BarChart, AEI Calculations)"),
               subtitle = waiver())+
       theme(plot.title = element_text(hjust = 0.5,size = 27.5),
@@ -290,21 +303,21 @@ server <- function(input, output, session) {
             legend.text = element_text(hjust = 0.5,size = 17.5))+
       theme(axis.title.y = element_text(size = 20))+
       theme(axis.title.x = element_text(size = 20,color="black"))+
-      geom_line(aes(color="forestgreen"),size=1.5) + 
+      geom_line(color="forestgreen",size=1.5) + 
       theme(plot.title = element_text(hjust = 0.5,size = 27.5),
             legend.title = element_text(hjust = 0,size = 17.5),
             legend.text = element_text(hjust = 0.5,size = 13),
             legend.position="none")+
       scale_color_manual(values="forestgreen")+
-      geom_point(data=goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T),aes(x=date, y=`ppp`),
+      geom_point(data=goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123, Contract1 %in% input$contract123), z = input$STRIKE,details = T),aes(x=date, y=`ppp`),
                  colour="black", size=5,shape=15)+
-      scale_x_continuous(breaks = unique(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$date)[seq(1,length(unique(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$date)),by=5)])+
-      scale_y_continuous(breaks = seq(roundUpNice(max(0,min(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$`ppp`,na.rm = T)-0.2)),
-                                      roundUpNice(min(1,(max(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$`ppp`,na.rm = T)))),
-                                      by=0.1),
-                         limits = c(roundUpNice(max(0,min(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$`ppp`,na.rm = T)-0.2)),
-                                    roundUpNice(min(1,(max(goobus(mydata = DDD %>% filter(Crop1 == input$crop123, Contract1 == input$contract123), z = input$STRIKE,details = T)$`ppp`,na.rm = T))))))+
-      labs(x="Date",y=paste0("Pr[x < $",input$STRIKE,"/bu at expiration]"))+
+      scale_x_continuous(breaks = unique(goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123,
+                                                                        Contract1 %in% input$contract123),
+                                                z = input$STRIKE,details = T)$date)[spsComps::shinyCatch({seq(1,length(unique(goobus(mydata = DDD %>% filter(Crop1 %in% input$crop123,
+                                                                                                                                                            Contract1 %in% input$contract123), 
+                                                                                                                                    z = input$STRIKE,details = T)$date)),by=5)})])+
+      scale_y_continuous(breaks = seq(0,1,0.1),limits = c(0,1))+
+      labs(x="Date",y=paste0("Pr[x < $",sprintf("%0.2f",input$STRIKE),"/bu at expiration]"))+
       theme(axis.text=element_text(size=15),
             axis.title=element_text(size=25,face="bold.italic",color="black"))
   })
